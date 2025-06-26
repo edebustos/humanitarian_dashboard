@@ -1,0 +1,131 @@
+{% extends 'dashboard/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="card p-4 mb-4">
+    <h2 class="mb-3">Global Context for <span class="text-primary">{{ selected_country.name|default:"Country not found" }}</span></h2>
+    <div class="row">
+        <div class="col-md-7">
+            <label for="country-selector" class="form-label fw-bold">Select another country:</label>
+            <select id="country-selector" class="form-select form-select-lg">
+                {% for country in countries %}
+                <option value="{{ country.code }}" {% if country.code == selected_country.code %}selected{% endif %}>
+                    {{ country.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- ========= ANÁLISIS HUMANITARIO DE ACAPS ========= -->
+<div class="mb-4">
+    <h3 class="mb-3">Humanitarian Analysis <span class="text-muted small">(Source: ACAPS)</span></h3>
+    {% if acaps_crises %}
+        <div class="row g-4">
+            {% for crisis in acaps_crises %}
+            <div class="col-12">
+                <div class="card bg-light border-start border-danger border-4">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ crisis.title }}</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">Crisis Type: {{ crisis.crisis_type }}</h6>
+                        <p class="card-text">{{ crisis.summary|truncatewords:50 }}</p>
+                        <a href="{{ crisis.acaps_url }}" target="_blank" class="btn btn-sm btn-outline-primary">Read full report...</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card p-3 text-center">
+            <p class="text-muted mb-0">No specific crisis analysis found on ACAPS for this country.</p>
+        </div>
+    {% endif %}
+</div>
+
+
+<!-- Indicadores Cuantitativos -->
+<h3 class="mb-3 mt-5">Economic & Demographic Indicators</h3>
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card p-3 text-center">
+            <div class="metric-label">Latest Total Population</div>
+            <div class="metric-value">{{ latest_population|intcomma|default:"N/A" }}</div>
+            <p class="small text-muted mb-0">(Source: World Bank)</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3 text-center">
+            <div class="metric-label">Latest GDP per Capita (USD)</div>
+            <div class="metric-value">${{ latest_gdp|floatformat:2|intcomma|default:"N/A" }}</div>
+            <p class="small text-muted mb-0">(Source: World Bank)</p>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h5 class="card-title">Population Growth</h5>
+            <div style="position: relative; height:40vh;">
+                <canvas id="populationChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h5 class="card-title">GDP per Capita (USD) Growth</h5>
+            <div style="position: relative; height:40vh;">
+                <canvas id="gdpChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% if gdp_growth_chart.data != '[]' %}
+    <div class="col-12">
+        <div class="card p-3 mt-4">
+            <h5 class="card-title">Real GDP Growth (%) - IMF</h5>
+            <div style="position: relative; height:40vh;">
+                <canvas id="gdpGrowthChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('country-selector').addEventListener('change', function() {
+        window.location.href = '/' + this.value + '/';
+    });
+
+    function createLineChart(canvasId, labels, data, label, borderColor) {
+        const ctx = document.getElementById(canvasId);
+        if (ctx && data && data.length > 0) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: borderColor,
+                        backgroundColor: borderColor + '33',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    }
+
+    createLineChart('populationChart', {{ population_chart.labels|safe }}, {{ population_chart.data|safe }}, 'Population', '#0d6efd');
+    createLineChart('gdpChart', {{ gdp_chart.labels|safe }}, {{ gdp_chart.data|safe }}, 'GDP per Capita (USD)', '#198754');
+    createLineChart('gdpGrowthChart', {{ gdp_growth_chart.labels|safe }}, {{ gdp_growth_chart.data|safe }}, 'Annual GDP Growth (%)', '#dc3545');
+});
+</script>
+{% endblock %}
