@@ -16,3 +16,6 @@
 
     # Archivos del editor
     .idea/
+    
+    __pycache__/
+    *.pyc
